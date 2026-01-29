@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>19×19 暗算ゲーム</title>
+<link rel="icon" href="19.png">
+
+<style>
+body {
+  margin: 0;
+  font-family: "Noto Sans JP", sans-serif;
+  background: #f2f4f8;
+  color: #333;
+  text-align: center;
+}
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ---------- スタート ---------- */
+.start-wrap { padding-top: 120px; }
+.start-btn {
+  margin-top: 40px;
+  font-size: 1.4em;
+  font-weight: 800;
+  padding: 18px 50px;
+  border-radius: 30px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 10px 0 #4c5bd4;
+}
+.start-btn:active {
+  transform: translateY(6px);
+  box-shadow: 0 4px 0 #4c5bd4;
+}
+
+/* ---------- ヘッダー ---------- */
+header {
+  padding: 12px;
+  font-weight: 800;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---------- サウンド ---------- */
+.sound-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sound-toggle input { display: none; }
+.toggle {
+  width: 44px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 20px;
+  position: relative;
+}
+.toggle::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: .3s;
+}
+input:checked + .toggle {
+  background: #667eea;
+}
+input:checked + .toggle::after {
+  transform: translateX(20px);
+}
+
+/* ---------- カード ---------- */
+.card-area {
+  height: 240px;
+  position: relative;
+  margin-top: 20px;
+}
+
+.card {
+  position: absolute;
+  left: 50%;
+  width: 280px;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 22px;
+  padding: 30px 20px;
+  font-size: 2.2em;
+  font-weight: 800;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  transition: transform .4s, opacity .4s;
+}
+
+.card.depth-0 { top: 10px; z-index: 3; }
+.card.depth-1 { top: 30px; opacity: .6; z-index: 2; transform: translateX(-50%) scale(.97); }
+.card.depth-2 { top: 50px; opacity: .3; z-index: 1; transform: translateX(-50%) scale(.94); }
+
+.card.exit {
+  transform: translateX(-50%) translateY(-40px) scale(1.05);
+  opacity: 0;
+}
+
+#answer {
+  width: 90px;
+  font-size: 1em;
+  font-weight: 800;
+  text-align: center;
+  border-radius: 12px;
+  border: 3px solid #667eea;
+}
+
+/* ---------- キーボード ---------- */
+.keypad {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: #fff;
+  padding: 15px;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.keypad button {
+  font-size: 1.4em;
+  font-weight: 800;
+  padding: 14px 0;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  box-shadow: 0 5px 0 #4c5bd4;
+}
+.keypad button:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #4c5bd4;
+}
+
+/* ---------- 結果 ---------- */
+.result-card {
+  max-width: 320px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 22px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+.rank {
+  background: #eef1ff;
+  border-radius: 12px;
+  padding: 10px;
+  margin: 6px 0;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+
+<!-- スタート -->
+<div id="start" class="screen active">
+  <div class="start-wrap">
+    <h1>19×19 暗算ゲーム</h1>
+    <button class="start-btn" onclick="startGame()">START</button>
+  </div>
+</div>
+
+<!-- ゲーム -->
+<div id="game" class="screen">
+  <header>
+    <div id="timer">0.00 秒</div>
+    <label class="sound-toggle">
+      🔊
+      <input type="checkbox" id="sound" checked>
+      <span class="toggle"></span>
+    </label>
+  </header>
+
+  <div class="card-area" id="cardArea"></div>
+
+  <div class="keypad" id="keypad">
+    <button onclick="inputNum(7)">7</button>
+    <button onclick="inputNum(8)">8</button>
+    <button onclick="inputNum(9)">9</button>
+    <button onclick="inputNum(4)">4</button>
+    <button onclick="inputNum(5)">5</button>
+    <button onclick="inputNum(6)">6</button>
+    <button onclick="inputNum(1)">1</button>
+    <button onclick="inputNum(2)">2</button>
+    <button onclick="inputNum(3)">3</button>
+    <button onclick="clearInput()">C</button>
+    <button onclick="inputNum(0)">0</button>
+    <button onclick="check()">OK</button>
+  </div>
+</div>
+
+<!-- 結果 -->
+<div id="result" class="screen">
+  <div class="result-card">
+    <h1>結果</h1>
+    <p id="finalTime"></p>
+    <h2>ランキング</h2>
+    <div id="ranking"></div>
+    <button class="start-btn" onclick="location.reload()">もう一度</button>
+  </div>
+</div>
+
+<audio id="ok" src="https://assets.mixkit.co/sfx/preview/mixkit-game-success-alert-2039.mp3"></audio>
+<audio id="ng" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
+
+<script>
+let list=[],i=0,ans,startTime,timer;
+const area=document.getElementById("cardArea");
+const timerEl=document.getElementById("timer");
+
+function startGame(){
+  start.classList.remove("active");
+  game.classList.add("active");
+  keypad.style.display="grid";
+
+  list=[...Array(10)].map(()=>[
+    Math.floor(Math.random()*19)+1,
+    Math.floor(Math.random()*19)+1
+  ]);
+  i=0;
+  startTime=Date.now();
+  timer=setInterval(()=>{
+    timerEl.textContent=((Date.now()-startTime)/1000).toFixed(2)+" 秒";
+  },50);
+  renderCards();
+}
+
+function renderCards(){
+  area.innerHTML="";
+  for(let d=0; d<3; d++){
+    if(list[i+d]){
+      const [a,b]=list[i+d];
+      const c=document.createElement("div");
+      c.className=`card depth-${d}`;
+      c.innerHTML=`${a} × ${b} ＝ ${d===0?'<input id="answer" readonly>':""}`;
+      area.appendChild(c);
+      if(d===0) ans=a*b;
+    }
+  }
+}
+
+function inputNum(n){ answer.value+=n; }
+function clearInput(){ answer.value=""; }
+
+function check(){
+  if(Number(answer.value)===ans){
+    play(ok);
+    const top=document.querySelector(".depth-0");
+    top.classList.add("exit");
+    setTimeout(()=>{
+      i++;
+      i===10 ? finish() : renderCards();
+    },350);
+  } else play(ng);
+}
+
+function finish(){
+  clearInterval(timer);
+  keypad.style.display="none";
+  game.classList.remove("active");
+  result.classList.add("active");
+
+  const t=((Date.now()-startTime)/1000).toFixed(2);
+  finalTime.textContent="タイム："+t+" 秒";
+
+  let ranks=JSON.parse(localStorage.ranks||"[]");
+  ranks.push(+t);
+  ranks.sort((a,b)=>a-b);
+  localStorage.ranks=JSON.stringify(ranks.slice(0,5));
+
+  ranking.innerHTML=ranks.slice(0,5)
+    .map((v,i)=>`<div class="rank">${i+1}位：${v} 秒</div>`).join("");
+}
+
+function play(a){
+  if(sound.checked){
+    a.currentTime=0;
+    a.play();
+  }
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key>="0"&&e.key<="9")inputNum(e.key);
+  if(e.key==="Enter")check();
+  if(e.key==="Backspace")clearInput();
+});
+</script>
+</body>
+</html>
